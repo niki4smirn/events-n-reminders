@@ -9,12 +9,13 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <QTimeEdit>
+#include <QTimer>
 
 #include <optional>
 #include <set>
 
 class MainWindow : public QMainWindow {
-  Q_OBJECT
+ Q_OBJECT
 
  public:
   MainWindow();
@@ -42,16 +43,37 @@ class MainWindow : public QMainWindow {
   std::optional<QTime> action_time_;
   std::optional<QString> action_name_;
 
+  void ChangeNthActionState(int n);
+
   struct Action {
+    Action(const QDateTime& date_time_, const QString& name_);
+    enum class Status {
+      kDefault,
+      kDone,
+      kOverdue
+    };
+
     QDateTime date_time;
     QString name;
+    Status status{Status::kDefault};
 
     QString ToString() const;
+
+    bool IsPast() const;
 
     bool operator<(const Action& other) const;
   };
 
-  std::multiset<Action> actions_;
+  struct Comparator {
+    bool operator()(const std::unique_ptr<Action>& lhs,
+                    const std::unique_ptr<Action>& rhs) const {
+      return *lhs < *rhs;
+    }
+  };
+
+  std::multiset<std::unique_ptr<Action>, Comparator> actions_;
+
+  QTimer* timer_;
 
   QSize minimal_size_{1000, 500};
 };

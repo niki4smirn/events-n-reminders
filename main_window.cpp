@@ -7,7 +7,11 @@ static const QString kEasterEggName = "Easter egg :)";
 MainWindow::MainWindow() :
     QMainWindow(nullptr),
     widget_(new QWidget(this)),
-    layout_(new QGridLayout()) {
+    layout_(new QGridLayout()),
+    timer_(new QTimer()) {
+  timer_->start();
+  timer_->setInterval(1000);
+
   resize(minimal_size_);
   setMinimumSize(minimal_size_);
 
@@ -40,8 +44,9 @@ void MainWindow::ConnectWidgets() {
         if (action_name_.has_value() &&
             action_date_.has_value() &&
             action_time_.has_value()) {
-          actions_.insert({{action_date_.value(), action_time_.value()},
-                           action_name_.value()});
+          actions_.insert(std::make_unique<Action>(
+              QDateTime(action_date_.value(), action_time_.value()),
+              action_name_.value()));
           UpdateActionsList();
         } else {
           QMessageBox msgBox;
@@ -49,6 +54,21 @@ void MainWindow::ConnectWidgets() {
           msgBox.exec();
         }
       });
+
+  connect(actions_list_,
+          &QListWidget::itemDoubleClicked, [&](QListWidgetItem* item) {
+        ChangeNthActionState(actions_list_->currentRow());
+      });
+
+  connect(timer_,
+          &QTimer::timeout, this, [&](){
+        for (auto& action : actions_) {
+          if (action->IsPast() && action->status == Action::Status::kDefault) {
+            action->status = Action::Status::kOverdue;
+          }
+        }
+        UpdateActionsList();
+  });
 }
 
 void MainWindow::SetupWidgets() {
@@ -60,6 +80,7 @@ void MainWindow::SetupWidgets() {
   calendar_ = new QCalendarWidget(widget_);
   calendar_->setLocale(QLocale::English);
   calendar_->setFirstDayOfWeek(Qt::DayOfWeek::Monday);
+  calendar_->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
   action_date_ = calendar_->selectedDate();
 
   name_edit_ = new QLineEdit(widget_);
@@ -86,8 +107,21 @@ void MainWindow::SetupWidgets() {
 void MainWindow::UpdateActionsList() {
   actions_list_->clear();
   for (const auto& action : actions_) {
-    auto* new_item = new QListWidgetItem(action.ToString(), actions_list_);
+    auto* new_item = new QListWidgetItem(action->ToString(), actions_list_);
     new_item->setTextAlignment(Qt::AlignCenter);
+    QBrush item_brush;
+    switch (action->status) {
+      case Action::Status::kDone: {
+        item_brush = Qt::green;
+        break;
+      }
+      case Action::Status::kOverdue: {
+        item_brush = Qt::red;
+        break;
+      }
+      default: {}
+    }
+    new_item->setBackground(item_brush);
     actions_list_->addItem(new_item);
   }
 }
@@ -121,6 +155,23 @@ void MainWindow::UpdateActionTime(const QTime& time) {
   }
 }
 
+void MainWindow::ChangeNthActionState(int n) {
+  assert(0 <= n && n < actions_.size());
+  auto cur_it = std::next(actions_.begin(), n);
+  Action::Status& cur_status = cur_it->get()->status;
+
+  if (cur_status != Action::Status::kDone) {
+    cur_status = Action::Status::kDone;
+  } else {
+    if (cur_it->get()->IsPast()) {
+      cur_status = Action::Status::kOverdue;
+    } else {
+      cur_status = Action::Status::kDefault;
+    }
+  }
+  UpdateActionsList();
+}
+
 bool MainWindow::Action::operator<(const MainWindow::Action& other) const {
   return date_time < other.date_time;
 }
@@ -128,3 +179,10 @@ bool MainWindow::Action::operator<(const MainWindow::Action& other) const {
 QString MainWindow::Action::ToString() const {
   return name + " (" + date_time.toString("hh:mm dd.MM.yyyy") + ")";
 }
+
+bool MainWindow::Action::IsPast() const {
+  return date_time <= QDateTime::currentDateTime();
+}
+
+MainWindow::Action::Action(const QDateTime& date_time_, const QString& name_) :
+    date_time(date_time_), name(name_) {}
