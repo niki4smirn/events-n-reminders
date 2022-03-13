@@ -7,15 +7,17 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMainWindow>
+#include <QMediaPlayer>
 #include <QPushButton>
 #include <QTimeEdit>
 #include <QTimer>
 
+#include <memory>
 #include <optional>
 #include <set>
 
 class MainWindow : public QMainWindow {
- Q_OBJECT
+  Q_OBJECT
 
  public:
   MainWindow();
@@ -46,7 +48,7 @@ class MainWindow : public QMainWindow {
   void ChangeNthActionState(int n);
 
   struct Action {
-    Action(const QDateTime& date_time_, const QString& name_);
+    Action(QDateTime date_time_, QString name_);
     enum class Status {
       kDefault,
       kDone,
@@ -74,6 +76,8 @@ class MainWindow : public QMainWindow {
   std::multiset<std::unique_ptr<Action>, Comparator> actions_;
 
   QTimer* timer_;
+
+  QMediaPlayer* player_;
 
   QSize minimal_size_{1000, 500};
 };

@@ -1,6 +1,9 @@
 #include "main_window.h"
 
+#include <QDir>
 #include <QMessageBox>
+
+#include <utility>
 
 static const QString kEasterEggName = "Easter egg :)";
 
@@ -8,7 +11,12 @@ MainWindow::MainWindow() :
     QMainWindow(nullptr),
     widget_(new QWidget(this)),
     layout_(new QGridLayout()),
-    timer_(new QTimer()) {
+    timer_(new QTimer()),
+    player_(new QMediaPlayer()) {
+  player_->setMedia(QUrl::fromLocalFile(QDir::currentPath() +
+                                        "/../music/coolsong.mp3"));
+  player_->setVolume(50);
+
   timer_->start();
   timer_->setInterval(1000);
 
@@ -50,7 +58,8 @@ void MainWindow::ConnectWidgets() {
           UpdateActionsList();
         } else {
           QMessageBox msgBox;
-          msgBox.setText("Check action info correctness (you cannot add nameless or past action).");
+          msgBox.setText("Check action info correctness "
+                         "(you cannot add nameless or past action).");
           msgBox.exec();
         }
       });
@@ -105,6 +114,7 @@ void MainWindow::SetupWidgets() {
 }
 
 void MainWindow::UpdateActionsList() {
+  int chosen = actions_list_->currentRow();
   actions_list_->clear();
   for (const auto& action : actions_) {
     auto* new_item = new QListWidgetItem(action->ToString(), actions_list_);
@@ -124,12 +134,14 @@ void MainWindow::UpdateActionsList() {
     new_item->setBackground(item_brush);
     actions_list_->addItem(new_item);
   }
+  actions_list_->setCurrentRow(chosen);
 }
 
 void MainWindow::UpdateActionName(const QString& new_name) {
   if (!new_name.isEmpty()) {
     if (new_name == kEasterEggName) {
       label_->setText("Oh... How did you know?");
+      player_->play();
     }
     action_name_ = new_name;
   } else {
@@ -184,5 +196,5 @@ bool MainWindow::Action::IsPast() const {
   return date_time <= QDateTime::currentDateTime();
 }
 
-MainWindow::Action::Action(const QDateTime& date_time_, const QString& name_) :
-    date_time(date_time_), name(name_) {}
+MainWindow::Action::Action(QDateTime date_time_, QString name_) :
+    date_time(std::move(date_time_)), name(std::move(name_)) {}

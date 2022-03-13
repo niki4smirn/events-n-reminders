@@ -11,6 +11,7 @@ find_package(Qt5 COMPONENTS
         Core
         Gui
         Widgets
+        Multimedia
         REQUIRED)
 
 add_executable(events_n_reminders main.cpp main_window.cpp)
@@ -19,4 +20,5 @@ target_link_libraries(events_n_reminders
         Qt::Core
         Qt::Gui
         Qt::Widgets
+        Qt::Multimedia
         )
